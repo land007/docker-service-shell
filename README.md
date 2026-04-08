@@ -1,109 +1,109 @@
 # Docker Service Shell
 
-Independent Docker deployment shell for Node and Next.js services.
+用于 Node 和 Next.js 服务的独立 Docker 部署外壳。
 
-## What It Provides
+## 提供能力
 
-- Production image build and runtime orchestration
-- Health checks and unhealthy container auto-restart
-- Main process restart with `restart: unless-stopped`
-- Default route override to a side-router gateway
-- Development mode with bind-mounted source and hot reload
+- 生产环境镜像构建和运行编排
+- 健康检查，以及不健康容器自动重启
+- 通过 `restart: unless-stopped` 保证主进程自动恢复
+- 支持把默认路由切到旁路网关
+- 开发模式支持源码挂载和热更新
 
-## Files
+## 文件说明
 
-- `Dockerfile`: shared multi-stage image
-- `docker-compose.yml`: production stack
-- `docker-compose.dev.yml`: development overrides
-- `scripts/entrypoint.sh`: env validation and route setup
-- `scripts/dev-start.sh`: dev dependency bootstrap and hot reload start
-- `services/dub_precedent/.env.example`: service-specific example
+- `Dockerfile`：通用多阶段镜像
+- `docker-compose.yml`：生产环境编排
+- `docker-compose.dev.yml`：开发环境覆盖配置
+- `scripts/entrypoint.sh`：环境变量校验和路由设置
+- `scripts/dev-start.sh`：开发依赖初始化和热更新启动
+- `services/dub_precedent/.env.example`：服务示例环境变量文件
 
-## Usage
+## 使用方法
 
-### 1. Prepare environment
+### 1. 准备环境
 
-Create a `.env` file in this directory and set the variables used by Compose, especially:
+在当前目录创建 `.env` 文件，并设置 Compose 运行所需的变量，重点包括：
 
-- `APP_CONTEXT`: app directory name located one level above this repository
-- `IMAGE_NAME`: target image name
-- `CONTAINER_NAME`: runtime container name
-- `SERVICE_NAME`: service name prefix used by helper containers
-- `HOST_PORT`: host port exposed to the outside
-- `APP_PORT`: internal app port listened to by the Node/Next.js service
-- `START_COMMAND`: production startup command, for example `npm run start`
-- `POSTGRES_DOCKER_NETWORK`: existing Docker network name used to reach PostgreSQL
+- `APP_CONTEXT`：应用目录名，目录位于本仓库上一级
+- `IMAGE_NAME`：目标镜像名
+- `CONTAINER_NAME`：运行时容器名
+- `SERVICE_NAME`：辅助容器使用的服务名前缀
+- `HOST_PORT`：对外暴露的宿主机端口
+- `APP_PORT`：Node/Next.js 服务在容器内监听的端口
+- `START_COMMAND`：生产环境启动命令，例如 `npm run start`
+- `POSTGRES_DOCKER_NETWORK`：用于连接 PostgreSQL 的现有 Docker 网络名
 
-If you already have `services/dub_precedent/.env.example` in the parent project, you can copy it here as `.env` and adjust the values for your service.
+如果上级项目里已经有 `services/dub_precedent/.env.example`，可以先复制到这里作为 `.env`，再按你的服务实际情况修改。
 
-### 2. Start production
+### 2. 启动生产环境
 
-Build and start the production stack:
+构建并启动生产环境：
 
 ```bash
 docker compose up -d --build
 ```
 
-Check service status:
+查看服务状态：
 
 ```bash
 docker compose ps
 docker compose logs -f app
 ```
 
-### 3. Start development
+### 3. 启动开发环境
 
-Run the development stack with bind-mounted source code and hot reload:
+使用源码挂载和热更新方式启动开发环境：
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 ```
 
-Edit the application source under `../${APP_CONTEXT}` and the container will reload automatically.
+直接修改 `../${APP_CONTEXT}` 下的应用源码，容器会自动热更新。
 
-### 4. Common operations
+### 4. 常用操作
 
-Stop services:
+停止服务：
 
 ```bash
 docker compose down
 ```
 
-Rebuild after dependency or Dockerfile changes:
+依赖或 Dockerfile 变更后重新构建：
 
 ```bash
 docker compose up -d --build
 ```
 
-Open a shell in the app container:
+进入应用容器的 Shell：
 
 ```bash
 docker compose exec app bash
 ```
 
-Run a one-off command such as a database migration:
+执行一次性命令，例如数据库迁移：
 
 ```bash
 docker compose run --rm app <command>
 ```
 
-## Production
+## 生产环境
 
-1. Copy `services/dub_precedent/.env.example` to `.env`.
-2. Fill in real PostgreSQL and app environment values.
-3. Run database changes manually before release:
+1. 复制 `services/dub_precedent/.env.example` 为 `.env`。
+2. 填入真实的 PostgreSQL 和应用环境变量。
+3. 发布前手动执行数据库变更：
 
 ```bash
 docker compose run --rm app npx prisma db push
 ```
 
-4. Build and start:
+4. 构建并启动：
 
 ```bash
 docker compose up -d --build
 ```
 
-5. Verify:
+5. 验证运行状态：
 
 ```bash
 docker compose ps
@@ -111,23 +111,23 @@ docker compose logs -f app
 docker compose exec app ip route
 ```
 
-## Development
+## 开发环境
 
-1. Copy `services/dub_precedent/.env.example` to `.env`.
-2. Start the dev stack:
+1. 复制 `services/dub_precedent/.env.example` 为 `.env`。
+2. 启动开发环境：
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 ```
 
-3. Edit files in `../dub_precedent`. Next.js hot reload will run inside the container.
+3. 修改 `../dub_precedent` 中的文件，Next.js 热更新会在容器内生效。
 
-## Notes
+## 说明
 
-- `ENABLE_DEFAULT_ROUTE_OVERRIDE=true` makes the app container run `ip route del default` and `ip route add default via ${DEFAULT_GATEWAY}` during startup.
-- Only the app container gets `NET_ADMIN` and route changes.
-- `autoheal` watches Docker health status and restarts unhealthy app containers.
-- The default build command for `dub_precedent` is `npm run build:docker` so image builds do not modify the database schema.
-- The build defaults to mainland-friendly mirrors: `APT_MIRROR=mirrors.tuna.tsinghua.edu.cn` and `NPM_REGISTRY=https://registry.npmmirror.com`. Override them in `.env` if another mirror is faster on your host.
-- If PostgreSQL runs in Docker and the hostname is a container name such as `postgres`, set `POSTGRES_DOCKER_NETWORK` to the Docker network shared with that database container.
-- If you want to validate Compose without copying the file first, set `ENV_FILE=services/dub_precedent/.env.example` together with `--env-file services/dub_precedent/.env.example`.
+- 设置 `ENABLE_DEFAULT_ROUTE_OVERRIDE=true` 后，应用容器启动时会执行 `ip route del default` 和 `ip route add default via ${DEFAULT_GATEWAY}`。
+- 只有应用容器会获得 `NET_ADMIN` 权限并修改路由。
+- `autoheal` 会监控 Docker 健康状态，并自动重启不健康的应用容器。
+- `dub_precedent` 默认使用 `npm run build:docker` 进行构建，因此镜像构建过程不会修改数据库结构。
+- 默认构建镜像使用大陆常用镜像源：`APT_MIRROR=mirrors.tuna.tsinghua.edu.cn` 和 `NPM_REGISTRY=https://registry.npmmirror.com`。如果宿主机访问其他镜像源更快，可以在 `.env` 中覆盖。
+- 如果 PostgreSQL 运行在 Docker 中，且主机名是 `postgres` 这类容器名，需要把 `POSTGRES_DOCKER_NETWORK` 设置为与数据库容器共用的 Docker 网络。
+- 如果你想在不复制文件的情况下验证 Compose，可以设置 `ENV_FILE=services/dub_precedent/.env.example`，并同时传入 `--env-file services/dub_precedent/.env.example`。
