@@ -1,0 +1,55 @@
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: docker-service-shell/Dockerfile
+      target: runner
+      args:
+        APP_CONTEXT: ${APP_CONTEXT}
+        BUILD_COMMAND: ${BUILD_COMMAND}
+        APT_MIRROR: ${APT_MIRROR}
+        NPM_REGISTRY: ${NPM_REGISTRY}
+    image: ${IMAGE_NAME}
+    container_name: ${CONTAINER_NAME}
+    restart: unless-stopped
+    env_file:
+      - ${ENV_FILE:-.env}
+    environment:
+      NODE_ENV: production
+      PORT: ${APP_PORT}
+      REQUIRED_ENV_VARS: ${REQUIRED_ENV_VARS}
+    ports:
+      - "${HOST_PORT}:${APP_PORT}"
+    cap_add:
+      - NET_ADMIN
+    networks:
+      - default
+      - postgres_net
+    labels:
+      autoheal: "true"
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --silent http://127.0.0.1:${APP_PORT}${HEALTHCHECK_PATH} || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    command:
+      - /bin/bash
+      - -lc
+      - ${START_COMMAND}
+
+  autoheal:
+    image: willfarrell/autoheal:1.2.0
+    container_name: ${SERVICE_NAME}_autoheal
+    restart: unless-stopped
+    environment:
+      AUTOHEAL_CONTAINER_LABEL: autoheal
+      AUTOHEAL_INTERVAL: 10
+      AUTOHEAL_START_PERIOD: 60
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+networks:
+  postgres_net:
+    external: true
+    name: ${POSTGRES_DOCKER_NETWORK}
